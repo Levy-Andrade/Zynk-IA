@@ -1,0 +1,18 @@
+{
+  "short_name": "Zynk",
+  "name": "Zynk - Assistente Pessoal IA",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#040711",
+  "theme_color": "#040711",
+  "display": "standalone",
+  "orientation": "portrait",
+  "description": "Assistente Pessoal de IA com Voz Nativa e Reconhecimento por Palavra-Chave 'Ok Zynk'"
+}
