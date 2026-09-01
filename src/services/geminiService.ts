@@ -6,7 +6,7 @@
 import { ChatMessage } from '../types/zynk';
 
 const LOCAL_STORAGE_KEY = 'zynk_gemini_api_key';
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 // System Prompt customizado com a personalidade leal, inteligente, eficiente e polida do Zynk
 export const ZYNK_SYSTEM_INSTRUCTION = `
