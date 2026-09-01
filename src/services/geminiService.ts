@@ -6,8 +6,7 @@
 import { ChatMessage } from '../types/zynk';
 
 const LOCAL_STORAGE_KEY = 'zynk_gemini_api_key';
-const GEMINI_MODEL = 'gemini-3.6-flash';
-
+const GEMINI_MODEL = 'gemini-1.5-flash-latest';
 // System Prompt customizado com a personalidade leal, inteligente, eficiente e polida do Zynk
 export const ZYNK_SYSTEM_INSTRUCTION = `
 Você é o ZYNK (Zynk Tactical Assistant), um assistente pessoal cibernético e inteligência artificial de elite.
