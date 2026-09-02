@@ -94,8 +94,8 @@ async function sendToGroq(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`
     },
-    body: JSON.stringify({
-      model: 'llama3-70b-8192', // <-- ALTERE DE 'llama-3.3-70b-versatile' PARA 'llama3-70b-8192' OU 'llama-3.1-8b-instant'
+body: JSON.stringify({
+      model: 'llama-3.1-70b-versatile', // <-- Opção 1: Maior inteligência e precisão
       messages,
       temperature: 0.6,
       max_tokens: 350
