@@ -76,7 +76,7 @@ export const ZynkApp: React.FC = () => {
       setErrorMessage(null);
 
       try {
-        const reply = await sendQueryToGemini(cleanPrompt, messages, settings.apiKey);
+        const reply = await sendQueryToGemini(cleanPrompt, messages, settings.apiKey, settings.provider);
 
         const botMsgId = (Date.now() + 1).toString();
         const botMessage: ChatMessage = {
@@ -129,6 +129,7 @@ export const ZynkApp: React.FC = () => {
   const handleSaveSettings = (newSettings: ZynkSettings) => {
     setSettings(newSettings);
     setStoredApiKey(newSettings.apiKey);
+    setStoredProvider(newSettings.provider);
     localStorage.setItem('zynk_user_settings', JSON.stringify(newSettings));
   };
 
