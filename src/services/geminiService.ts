@@ -1,15 +1,19 @@
 /**
- * Serviço de Integração com a Google Gemini API (Camada Gratuita)
- * Executado 100% no cliente (browser) com armazenamento local da API Key.
+ * Serviço de Inteligência Artificial do Zynk (Multi-Provedor)
+ * Suporta:
+ * 1. Groq (Recomendado - 100% Gratuito, Ultra-rápido, sem erros de cota e sem cartão de crédito)
+ * 2. OpenRouter (Modelos gratuitos variados como Llama 3.3 70B, Mistral, Qwen)
+ * 3. Google Gemini (Com auto-fallback para gemini-2.0-flash, gemini-1.5-flash)
  */
 
-import { ChatMessage } from '../types/zynk';
+import { ChatMessage, AIProvider } from '../types/zynk';
 
-const LOCAL_STORAGE_KEY = 'zynk_gemini_api_key';
-const GEMINI_MODEL = 'gemini-1.5-flash-latest';
+const LOCAL_STORAGE_KEY_API_KEY = 'zynk_ai_api_key';
+const LOCAL_STORAGE_KEY_PROVIDER = 'zynk_ai_provider';
+
 // System Prompt customizado com a personalidade leal, inteligente, eficiente e polida do Zynk
 export const ZYNK_SYSTEM_INSTRUCTION = `
-Você é o ZYNK (Zynk Tactical Assistant), um assistente pessoal cibernético e inteligência artificial de elite.
+Você é o ZYNK (Zynk Tactical Assistant), um assistente pessoal cibernético e inteligência artificial tática de elite.
 
 Suas diretrizes fundamentais de personalidade e comportamento:
 1. LEALDADE E EFICIÊNCIA: Demonstre extrema lealdade, precisão técnica e presteza imediata ao usuário.
@@ -20,11 +24,17 @@ Suas diretrizes fundamentais de personalidade e comportamento:
 `.trim();
 
 /**
- * Obtém a API Key salva no localStorage ou variável de ambiente Vite
+ * Obtém a API Key salva no localStorage
  */
 export function getStoredApiKey(): string {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem(LOCAL_STORAGE_KEY) || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+  return (
+    localStorage.getItem(LOCAL_STORAGE_KEY_API_KEY) ||
+    localStorage.getItem('zynk_gemini_api_key') ||
+    (import.meta as any).env?.VITE_GROQ_API_KEY ||
+    (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+    ''
+  );
 }
 
 /**
@@ -32,32 +42,142 @@ export function getStoredApiKey(): string {
  */
 export function setStoredApiKey(apiKey: string): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(LOCAL_STORAGE_KEY, apiKey.trim());
+  localStorage.setItem(LOCAL_STORAGE_KEY_API_KEY, apiKey.trim());
+  localStorage.setItem('zynk_gemini_api_key', apiKey.trim());
 }
 
 /**
- * Remove a API Key do localStorage
+ * Obtém o provedor salvo no localStorage (Padrão: Groq)
  */
-export function clearStoredApiKey(): void {
+export function getStoredProvider(): AIProvider {
+  if (typeof window === 'undefined') return 'groq';
+  const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PROVIDER) as AIProvider;
+  if (saved === 'groq' || saved === 'openrouter' || saved === 'gemini') {
+    return saved;
+  }
+  return 'groq'; // Groq é o padrão mais estável e rápido
+}
+
+/**
+ * Salva o provedor no localStorage
+ */
+export function setStoredProvider(provider: AIProvider): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(LOCAL_STORAGE_KEY);
+  localStorage.setItem(LOCAL_STORAGE_KEY_PROVIDER, provider);
 }
 
-/**
- * Envia mensagem para o modelo Gemini com histórico de contexto
- */
-export async function sendQueryToGemini(
+// -------------------------------------------------------------
+// 1. PROVEDOR GROQ (Llama 3.3 70B / Llama 3.1 8B) - 100% Grátis e Ultra Rápido
+// -------------------------------------------------------------
+async function sendToGroq(
   prompt: string,
-  history: ChatMessage[] = [],
-  customApiKey?: string
+  history: ChatMessage[],
+  apiKey: string
 ): Promise<string> {
-  const key = (customApiKey || getStoredApiKey()).trim();
+  const messages = [
+    { role: 'system', content: ZYNK_SYSTEM_INSTRUCTION },
+    ...history
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .slice(-8)
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.text
+      })),
+    { role: 'user', content: prompt }
+  ];
 
-  if (!key) {
-    throw new Error('CHAVE_API_AUSENTE: Configure sua Gemini API Key gratuita nas configurações do Zynk.');
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages,
+      temperature: 0.6,
+      max_tokens: 350
+    })
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    const msg = errData.error?.message || `HTTP ${response.status}: ${response.statusText}`;
+    if (response.status === 401) {
+      throw new Error('CHAVE_GROQ_INVALIDA: A chave da Groq informada está incorreta.');
+    }
+    throw new Error(`Erro na API Groq: ${msg}`);
   }
 
-  // Prepara as últimas 8 mensagens do histórico para manter contexto
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error('A Groq não retornou nenhuma resposta.');
+  return text.trim();
+}
+
+// -------------------------------------------------------------
+// 2. PROVEDOR OPENROUTER (Multi-Modelos Gratuitos)
+// -------------------------------------------------------------
+async function sendToOpenRouter(
+  prompt: string,
+  history: ChatMessage[],
+  apiKey: string
+): Promise<string> {
+  const messages = [
+    { role: 'system', content: ZYNK_SYSTEM_INSTRUCTION },
+    ...history
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .slice(-8)
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.text
+      })),
+    { role: 'user', content: prompt }
+  ];
+
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+      'HTTP-Referer': window.location.origin,
+      'X-Title': 'Zynk Tactical AI'
+    },
+    body: JSON.stringify({
+      model: 'meta-llama/llama-3.3-70b-instruct:free',
+      messages,
+      temperature: 0.6,
+      max_tokens: 350
+    })
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    const msg = errData.error?.message || `HTTP ${response.status}: ${response.statusText}`;
+    throw new Error(`Erro no OpenRouter: ${msg}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error('O OpenRouter não retornou resposta.');
+  return text.trim();
+}
+
+// -------------------------------------------------------------
+// 3. PROVEDOR GOOGLE GEMINI (Com Fallback de Modelos v1beta)
+// -------------------------------------------------------------
+async function sendToGemini(
+  prompt: string,
+  history: ChatMessage[],
+  apiKey: string
+): Promise<string> {
+  const candidateModels = [
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-pro'
+  ];
+
   const formattedContents = history
     .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
     .slice(-8)
@@ -66,65 +186,78 @@ export async function sendQueryToGemini(
       parts: [{ text: msg.text }]
     }));
 
-  // Adiciona a pergunta atual
   formattedContents.push({
     role: 'user',
     parts: [{ text: prompt }]
   });
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
+  let lastError: Error | null = null;
 
-  const payload = {
-    contents: formattedContents,
-    systemInstruction: {
-      parts: [
-        {
-          text: ZYNK_SYSTEM_INSTRUCTION
+  for (const model of candidateModels) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: formattedContents,
+          systemInstruction: { parts: [{ text: ZYNK_SYSTEM_INSTRUCTION }] },
+          generationConfig: {
+            temperature: 0.6,
+            topP: 0.95,
+            topK: 40,
+            maxOutputTokens: 350
+          }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (responseText) return responseText.trim();
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData.error?.message || response.statusText;
+        if (response.status === 400 && errMsg.includes('API_KEY_INVALID')) {
+          throw new Error('CHAVE_GEMINI_INVALIDA: A chave informada é inválida ou expirou no Google AI Studio.');
         }
-      ]
-    },
-    generationConfig: {
-      temperature: 0.6,
-      topP: 0.95,
-      topK: 40,
-      maxOutputTokens: 350,
-    }
-  };
-
-  try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`;
-      
-      if (response.status === 400 && errorMessage.includes('API_KEY_INVALID')) {
-        throw new Error('CHAVE_INVALIDA: A Gemini API Key informada é inválida ou expirou.');
+        lastError = new Error(`[${model}] ${errMsg}`);
       }
-      if (response.status === 429) {
-        throw new Error('LIMITE_ATINGIDO: Cota temporária da Gemini API atingida. Tente novamente em alguns segundos.');
-      }
-      throw new Error(`Erro na API Gemini: ${errorMessage}`);
+    } catch (e: any) {
+      if (e.message?.includes('CHAVE_GEMINI_INVALIDA')) throw e;
+      lastError = e;
     }
+  }
 
-    const data = await response.json();
-    const candidate = data.candidates?.[0];
-    const responseText = candidate?.content?.parts?.[0]?.text;
+  throw lastError || new Error('Falha ao comunicar com a Google Gemini API.');
+}
 
-    if (!responseText) {
-      return 'Comando recebido, porém não foi gerada nenhuma resposta de texto.';
-    }
+/**
+ * Função principal que roteia a consulta para o provedor selecionado
+ */
+export async function sendQueryToGemini(
+  prompt: string,
+  history: ChatMessage[] = [],
+  customApiKey?: string,
+  provider?: AIProvider
+): Promise<string> {
+  const activeProvider = provider || getStoredProvider();
+  const key = (customApiKey || getStoredApiKey()).trim();
 
-    // Limpa eventuais marcadores excessivos para melhorar a fala natural
-    return responseText.trim();
-  } catch (error: any) {
-    console.error('[Zynk Gemini Service] Erro:', error);
-    throw error;
+  if (!key) {
+    throw new Error(
+      `CHAVE_API_AUSENTE: Configure sua API Key gratuita do ${activeProvider.toUpperCase()} nas configurações do Zynk.`
+    );
+  }
+
+  switch (activeProvider) {
+    case 'groq':
+      return await sendToGroq(prompt, history, key);
+    case 'openrouter':
+      return await sendToOpenRouter(prompt, history, key);
+    case 'gemini':
+    default:
+      return await sendToGemini(prompt, history, key);
   }
 }

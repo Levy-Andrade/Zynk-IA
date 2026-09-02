@@ -1,10 +1,10 @@
 /**
  * SettingsModal - Modal de Configurações do Zynk
- * Gerencia API Key do Gemini (salva em localStorage), Vozes da Web Speech API e preferências.
+ * Gerencia Provedor de IA (Groq, OpenRouter, Gemini), Chaves de API, Vozes e Preferências.
  */
 
 import React, { useState } from 'react';
-import { ZynkSettings } from '../types/zynk';
+import { ZynkSettings, AIProvider } from '../types/zynk';
 import {
   X,
   Key,
@@ -14,7 +14,9 @@ import {
   ShieldCheck,
   RotateCcw,
   Mic,
-  Briefcase
+  Briefcase,
+  Zap,
+  Cpu
 } from 'lucide-react';
 import { zynkAudio } from '../utils/audioEffects';
 
@@ -66,6 +68,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     window.speechSynthesis.speak(utterance);
   };
 
+  const getProviderInfo = (p: AIProvider) => {
+    switch (p) {
+      case 'groq':
+        return {
+          name: 'Groq Cloud (Llama 3.3 70B)',
+          desc: '⚡ Recomendado: 100% Gratuito, Resposta em 0.3s, Ultra Estável e sem limites restritivos.',
+          url: 'https://console.groq.com/keys',
+          placeholder: 'gsk_...'
+        };
+      case 'openrouter':
+        return {
+          name: 'OpenRouter (Llama / Mistral)',
+          desc: '🌐 Gratuito com múltiplos modelos de ponta.',
+          url: 'https://openrouter.ai/keys',
+          placeholder: 'sk-or-v1-...'
+        };
+      case 'gemini':
+      default:
+        return {
+          name: 'Google Gemini (1.5 Flash / 2.0 Flash)',
+          desc: '🤖 Modelo do Google AI Studio.',
+          url: 'https://aistudio.google.com/app/apikey',
+          placeholder: 'AIzaSy...'
+        };
+    }
+  };
+
+  const currentProviderInfo = getProviderInfo(localSettings.provider || 'groq');
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-lg rounded-3xl bg-zynk-deepBlue/95 border border-zynk-border shadow-2xl p-6 text-zynk-textBright overflow-hidden">
@@ -91,19 +122,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Formulário de Configuração */}
         <div className="mt-4 space-y-5 max-h-[70vh] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zynk-border">
-          {/* 1. Google Gemini API Key */}
+          {/* 1. Seleção do Provedor de IA */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-1.5 text-xs font-mono font-semibold text-zynk-cyan uppercase">
+              <Cpu className="w-3.5 h-3.5" /> Motor de Inteligência Artificial
+            </label>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setLocalSettings({ ...localSettings, provider: 'groq' })}
+                className={`px-3 py-2.5 rounded-xl border text-xs font-mono font-semibold flex flex-col items-center justify-center gap-1 transition-all ${
+                  (localSettings.provider || 'groq') === 'groq'
+                    ? 'bg-zynk-cyan/20 border-zynk-cyan text-zynk-cyan shadow-neon-cyan'
+                    : 'bg-black/40 border-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-1">
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>GROQ</span>
+                </div>
+                <span className="text-[9px] text-zynk-emerald font-bold">RECOMENDADO</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLocalSettings({ ...localSettings, provider: 'gemini' })}
+                className={`px-3 py-2.5 rounded-xl border text-xs font-mono font-semibold flex flex-col items-center justify-center gap-1 transition-all ${
+                  localSettings.provider === 'gemini'
+                    ? 'bg-zynk-cyan/20 border-zynk-cyan text-zynk-cyan shadow-neon-cyan'
+                    : 'bg-black/40 border-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>GEMINI</span>
+                <span className="text-[9px] text-slate-400">Google AI</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLocalSettings({ ...localSettings, provider: 'openrouter' })}
+                className={`px-3 py-2.5 rounded-xl border text-xs font-mono font-semibold flex flex-col items-center justify-center gap-1 transition-all ${
+                  localSettings.provider === 'openrouter'
+                    ? 'bg-zynk-cyan/20 border-zynk-cyan text-zynk-cyan shadow-neon-cyan'
+                    : 'bg-black/40 border-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>OPENROUTER</span>
+                <span className="text-[9px] text-slate-400">Free Models</span>
+              </button>
+            </div>
+
+            <p className="text-[11px] text-zynk-textMuted">{currentProviderInfo.desc}</p>
+          </div>
+
+          {/* 2. Campo de API Key do Provedor Selecionado */}
           <div className="space-y-2">
             <label className="flex items-center justify-between text-xs font-mono font-semibold text-zynk-cyan uppercase">
               <span className="flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5" /> Google Gemini API Key (Grátis)
+                <Key className="w-3.5 h-3.5" /> API Key ({currentProviderInfo.name})
               </span>
               <a
-                href="https://aistudio.google.com/app/apikey"
+                href={currentProviderInfo.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[11px] text-zynk-cyan/80 hover:text-zynk-cyan underline flex items-center gap-1"
+                className="text-[11px] text-zynk-cyan/80 hover:text-zynk-cyan underline flex items-center gap-1 font-sans"
               >
-                Gerar chave gratuita <ExternalLink className="w-2.5 h-2.5" />
+                Gerar chave grátis <ExternalLink className="w-2.5 h-2.5" />
               </a>
             </label>
 
@@ -112,7 +196,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type={showKey ? 'text' : 'password'}
                 value={localSettings.apiKey}
                 onChange={(e) => setLocalSettings({ ...localSettings, apiKey: e.target.value })}
-                placeholder="AIzaSy..."
+                placeholder={currentProviderInfo.placeholder}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-zynk-border focus:border-zynk-cyan focus:outline-none text-xs font-mono text-white placeholder-slate-600 transition-colors"
               />
               <button
@@ -130,7 +214,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </p>
           </div>
 
-          {/* 2. Seletor de Voz da Web Speech API */}
+          {/* 3. Seletor de Voz da Web Speech API */}
           <div className="space-y-2">
             <label className="flex items-center gap-1.5 text-xs font-mono font-semibold text-zynk-cyan uppercase">
               <Volume2 className="w-3.5 h-3.5" /> Voz do Sintetizador Nativo
@@ -160,7 +244,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* 3. Sliders de Velocidade e Tom */}
+          {/* 4. Sliders de Velocidade e Tom */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs font-mono text-zynk-textMuted">
@@ -195,9 +279,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* 4. Alternadores Rápidos */}
+          {/* 5. Alternadores Rápidos */}
           <div className="pt-2 border-t border-white/10 space-y-3">
-            {/* Wake Word Contínuo */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-zynk-border/40">
               <div className="flex items-center gap-2.5">
                 <Mic className="w-4 h-4 text-zynk-cyan" />
@@ -216,7 +299,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </div>
 
-            {/* Modo Reunião */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-zynk-border/40">
               <div className="flex items-center gap-2.5">
                 <Briefcase className="w-4 h-4 text-amber-400" />
@@ -234,7 +316,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* 5. Ação de Limpeza de Conversa */}
+          {/* 6. Ação de Limpeza de Conversa */}
           <div className="pt-2 border-t border-white/10 flex justify-between items-center">
             <button
               type="button"

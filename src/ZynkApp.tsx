@@ -11,7 +11,9 @@ import { useZynkSpeech } from './hooks/useZynkSpeech';
 import {
   sendQueryToGemini,
   getStoredApiKey,
-  setStoredApiKey
+  setStoredApiKey,
+  getStoredProvider,
+  setStoredProvider
 } from './services/geminiService';
 import { ChatMessage, ZynkSettings } from './types/zynk';
 import { zynkAudio } from './utils/audioEffects';
@@ -26,6 +28,7 @@ import {
 } from 'lucide-react';
 
 const DEFAULT_SETTINGS: ZynkSettings = {
+  provider: 'groq',
   apiKey: '',
   voiceName: '',
   rate: 1.05,
@@ -39,14 +42,15 @@ export const ZynkApp: React.FC = () => {
   // Configurações persistidas
   const [settings, setSettings] = useState<ZynkSettings>(() => {
     const storedKey = getStoredApiKey();
+    const storedProvider = getStoredProvider();
     const storedSettings = localStorage.getItem('zynk_user_settings');
     if (storedSettings) {
       try {
         const parsed = JSON.parse(storedSettings);
-        return { ...DEFAULT_SETTINGS, ...parsed, apiKey: storedKey };
+        return { ...DEFAULT_SETTINGS, ...parsed, apiKey: storedKey, provider: parsed.provider || storedProvider };
       } catch (e) {}
     }
-    return { ...DEFAULT_SETTINGS, apiKey: storedKey };
+    return { ...DEFAULT_SETTINGS, apiKey: storedKey, provider: storedProvider };
   });
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);

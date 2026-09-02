@@ -18,7 +18,10 @@ export interface ChatMessage {
   isMeetingMode?: boolean;
 }
 
+export type AIProvider = 'groq' | 'openrouter' | 'gemini';
+
 export interface ZynkSettings {
+  provider: AIProvider;
   apiKey: string;
   voiceName: string;
   rate: number;          // 0.5 a 2.0 (velocidade da fala)
