@@ -95,7 +95,7 @@ async function sendToGroq(
       Authorization: `Bearer ${apiKey}`
     },
 body: JSON.stringify({
-      model: 'llama-3.1-8b-instant', // <-- Modelo atualizado, leve e super rápido
+      model: 'mixtral-8x7b-32768', // <-- Modelo extremamente estável e rápido
       messages,
       temperature: 0.6,
       max_tokens: 350
