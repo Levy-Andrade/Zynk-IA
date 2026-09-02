@@ -86,6 +86,8 @@ async function sendToGroq(
     { role: 'user', content: prompt }
   ];
 
+// Localize este trecho no seu arquivo geminiService.ts (por volta da linha 80):
+
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -93,7 +95,7 @@ async function sendToGroq(
       Authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama3-70b-8192', // <-- ALTERE DE 'llama-3.3-70b-versatile' PARA 'llama3-70b-8192' OU 'llama-3.1-8b-instant'
       messages,
       temperature: 0.6,
       max_tokens: 350
