@@ -88,14 +88,16 @@ async function sendToGroq(
 
 // Localize este trecho no seu arquivo geminiService.ts (por volta da linha 80):
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
+      Authorization: `Bearer ${apiKey}`,
+      'HTTP-Referer': window.location.origin,
+      'X-Title': 'Zynk Tactical AI'
     },
-body: JSON.stringify({
-      model: 'mixtral-8x7b-32768', // <-- Modelo extremamente estável e rápido
+    body: JSON.stringify({
+      model: 'meta-llama/llama-3.3-70b-instruct', // <-- Removido o ':free' do final
       messages,
       temperature: 0.6,
       max_tokens: 350
